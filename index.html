@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#714623" />
+  <title>Twelve Men's Morris</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700&family=Spectral:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="page" class="mode-start">
+    <!-- ============ START SCREEN ============ -->
+    <section id="start-screen">
+      <div class="start-card">
+        <h1 class="title">Twelve Men's Morris</h1>
+        <p class="subtitle">Merels on the great diagonal board &mdash; form mills, capture cows, drive your rival from the field.</p>
+
+        <div class="mode-buttons">
+          <button id="btn-vs-computer" class="btn btn-primary">
+            <span class="btn-big">Play vs Computer</span>
+            <span class="btn-small">Choose your strength</span>
+          </button>
+          <button id="btn-vs-human" class="btn btn-secondary">
+            <span class="btn-big">Play vs Person</span>
+            <span class="btn-small">Two players, one board</span>
+          </button>
+        </div>
+
+        <div id="difficulty-picker" class="difficulty-picker hidden">
+          <p class="picker-label">Choose difficulty</p>
+          <div class="picker-row">
+            <button class="btn btn-diff" data-diff="easy"><span class="btn-big">Easy</span><span class="btn-small">Fresh to the field</span></button>
+            <button class="btn btn-diff" data-diff="medium"><span class="btn-big">Medium</span><span class="btn-small">A seasoned player</span></button>
+            <button class="btn btn-diff" data-diff="hard"><span class="btn-big">Hard</span><span class="btn-small">A cunning master</span></button>
+          </div>
+          <p class="picker-hint">You play the ivory pieces and move first.</p>
+        </div>
+
+        <div id="resume-offer" class="resume-offer hidden">
+          <div class="resume-text">
+            <span class="resume-title">Unfinished game</span>
+            <span id="resume-detail" class="resume-detail"></span>
+          </div>
+          <div class="resume-actions">
+            <button id="btn-resume" class="btn btn-primary">Resume</button>
+            <button id="btn-discard" class="btn btn-secondary">Discard</button>
+          </div>
+        </div>
+
+        <button id="btn-rules-start" class="btn-link">How to play</button>
+      </div>
+    </section>
+
+    <!-- ============ GAME SCREEN ============ -->
+    <section id="game-screen" class="hidden">
+      <header class="game-header">
+        <h1 class="title-small">Twelve Men's Morris</h1>
+        <div class="header-buttons">
+          <button id="btn-sound" class="btn btn-ghost btn-sound" title="Mute sounds (M)" aria-pressed="true" aria-label="Toggle sound">🔊</button>
+          <button id="btn-rules" class="btn btn-ghost">Rules</button>
+          <button id="btn-new" class="btn btn-ghost">New game</button>
+          <button id="btn-menu" class="btn btn-ghost">Menu</button>
+        </div>
+      </header>
+
+      <main class="game-layout">
+        <div class="board-wrap">
+          <svg id="board" viewBox="0 0 800 800" role="img" aria-label="Twelve Men's Morris board"></svg>
+          <div id="review-banner" class="review-banner hidden">Reviewing…</div>
+          <div id="end-overlay" class="end-overlay hidden">
+            <div class="end-card">
+              <div id="end-icon" class="end-icon">&#127942;</div>
+              <h2 id="end-title">White wins</h2>
+              <p id="end-detail"></p>
+              <div class="end-actions">
+                <button id="btn-rematch" class="btn btn-primary">Play again</button>
+                <button id="btn-end-menu" class="btn btn-secondary">Menu</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="panel">
+          <div id="status-msg" class="status-msg">White to place a piece.</div>
+
+          <div class="controls-row">
+            <button id="btn-undo" class="btn btn-ghost btn-undo" title="Undo the last move (U)">↩ Undo</button>
+            <div class="nav-group" role="group" aria-label="Move history navigation">
+              <button id="nav-first" class="btn btn-ghost nav-btn" title="First move (review)">⏮</button>
+              <button id="nav-prev" class="btn btn-ghost nav-btn" title="Previous move (←)">◀</button>
+              <button id="nav-next" class="btn btn-ghost nav-btn" title="Next move (→)">▶</button>
+              <button id="nav-last" class="btn btn-ghost nav-btn" title="Back to the live position (Esc)">⏭</button>
+            </div>
+          </div>
+
+          <div class="players">
+            <div id="card-w" class="player-card active">
+              <div class="player-head">
+                <span class="chip chip-w"></span>
+                <span id="name-w" class="player-name">White</span>
+              </div>
+              <div class="player-stats">
+                <div class="stat"><span id="hand-w" class="stat-num">12</span><span class="stat-label">in hand</span></div>
+                <div class="stat"><span id="board-w" class="stat-num">0</span><span class="stat-label">on board</span></div>
+                <div class="stat"><span id="lost-w" class="stat-num">0</span><span class="stat-label">lost</span></div>
+              </div>
+            </div>
+            <div id="card-b" class="player-card">
+              <div class="player-head">
+                <span class="chip chip-b"></span>
+                <span id="name-b" class="player-name">Black</span>
+              </div>
+              <div class="player-stats">
+                <div class="stat"><span id="hand-b" class="stat-num">12</span><span class="stat-label">in hand</span></div>
+                <div class="stat"><span id="board-b" class="stat-num">0</span><span class="stat-label">on board</span></div>
+                <div class="stat"><span id="lost-b" class="stat-num">0</span><span class="stat-label">lost</span></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="phase-line" class="phase-line">Placing phase &middot; move 1</div>
+          <div id="history" class="history"></div>
+        </aside>
+      </main>
+    </section>
+
+    <!-- ============ RULES MODAL ============ -->
+    <div id="rules-modal" class="modal-backdrop hidden">
+      <div class="modal">
+        <button id="btn-rules-close" class="modal-close" aria-label="Close">&times;</button>
+        <h2>How to play</h2>
+        <div class="rules-body">
+          <p><strong>The board</strong> has 24 points: three concentric squares joined by cross-lines, plus four diagonals. Each player commands 12 pieces.</p>
+          <ol>
+            <li><strong>Placing</strong> &mdash; take turns putting one piece on any empty point until all 24 are placed.</li>
+            <li><strong>Moving</strong> &mdash; then slide one of your pieces along a line to an adjacent empty point.</li>
+            <li><strong>Flying</strong> &mdash; when reduced to exactly 3 pieces you may move to <em>any</em> empty point.</li>
+          </ol>
+          <p><strong>Mills:</strong> three of your pieces on one marked line (including the diagonals) form a mill. Completing a mill lets you remove one enemy piece &mdash; but pieces inside an enemy mill are safe unless every enemy piece is in a mill. Breaking a mill and re-forming it later captures again.</p>
+          <p><strong>Winning:</strong> reduce your opponent to 2 pieces, or leave them with no legal move. If all 24 pieces are placed and no capture was ever made, the game is a draw.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="ai.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
