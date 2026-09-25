@@ -599,6 +599,19 @@ body {
   100% { stroke-opacity: 0; }
 }
 
+/* ---------- computer move animation ---------- */
+/* Ghost piece that fades in (placement) or glides across the board (slide)  */
+/* so the computer's move can be followed. See aiAnimateMove() in game.js.   */
+.ai-anim-piece { pointer-events: none; }
+.ai-land-ring {
+  pointer-events: none;
+  animation: aiLandPulse 1.2s ease-in-out infinite alternate;
+}
+@keyframes aiLandPulse {
+  from { stroke-opacity: .45; }
+  to   { stroke-opacity: 1; }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .mill-piece .piece-body { animation: none; }
@@ -607,4 +620,5 @@ body {
   .capture-fade { animation: none; }
   .hist-row, .controls-row .btn { transition: none; }
   .piece.capture-anim, .shard, .mill-flash { animation: none; opacity: 0; }
+  .ai-anim-piece, .ai-land-ring { animation: none; }
 }

@@ -395,6 +395,9 @@ ENGINE.isDraw = function (st) {
   let viewIndex = null;
   let pendingEntry = null;      // move in progress (mill made, removal pending)
   let gen = 0;                  // bumped on undo/new game: invalidates queued AI timers
+  // Slow-motion animation of the computer's piece in flight: so its move can
+  // actually be followed. {from, to, t0, dur} or null when idle.
+  let aiAnim = null;
 
   // ----- static board drawing -----
   function el(tag, attrs, parent) {
@@ -730,6 +733,7 @@ ENGINE.isDraw = function (st) {
     viewIndex = null;
     selected = null;
     pendingEntry = null;
+    aiAnim = null;             // stop any in-flight AI glide
     clearFx();
     gen++;                     // cancel any queued AI timer
     aiThinking = false;
@@ -780,6 +784,7 @@ ENGINE.isDraw = function (st) {
     history = d.history || [];
     pendingEntry = d.pendingEntry || null;
     viewIndex = null; selected = null; aiThinking = false;
+    aiAnim = null;             // stale in-flight animation after resume
     gen++;
     $("end-overlay").classList.add("hidden");
     $("start-screen").classList.add("hidden");
@@ -919,12 +924,84 @@ ENGINE.isDraw = function (st) {
     setTimeout(() => {
       if (myGen !== gen) return; // game was undone/reset meanwhile
       const mv = window.AI.chooseMove(state, difficulty);
-      aiThinking = false;
       if (!mv) { // cannot move — already handled by engine, but just in case
+        aiThinking = false;
         return;
       }
-      doMove(mv);
+      // Show the move slowly instead of snapping it onto the board.
+      aiAnimateMove(mv, myGen);
     }, 350);
+  }
+
+  // Slow, followable animation of the computer's move. A placement fades in
+  // under a shrinking landing ring; a slide visibly travels from its origin
+  // to its destination. A short hold after landing lets the move sink in
+  // before the turn is finalized.
+  function aiAnimateMove(mv, myGen) {
+    const place = mv.type === "place";
+    const fadeMs = 600;                     // landing fade-in (placements)
+    const travelMs = place ? 0 : 1400;      // glide time (slides)
+    const holdMs = 600;                     // pause after landing
+    const total = (place ? fadeMs : travelMs) + holdMs;
+    const t0 = performance.now();
+    const ease = t => t * t * (3 - 2 * t);  // smoothstep
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      aiAnim = null; // user asked for no motion — just play the move
+      doMove(mv);
+      return;
+    }
+    aiAnim = { from: mv.from, to: mv.to };
+    aiThinking = false;                     // clicks stay blocked by turn check
+
+    // highlight the destination for the whole animation
+    const ring = el("circle", {
+      cx: P[mv.to][0], cy: P[mv.to][1], r: 33,
+      fill: "none", stroke: "var(--hl)", "stroke-width": 5,
+      class: "ai-land-ring"
+    }, fxG);
+    ring.style.pointerEvents = "none";
+
+    // a ghost piece above the FX layer that fades in (place) or glides (move);
+    // the real piece only appears when the move is finalized below.
+    const ghost = addPiece(place ? mv.to : mv.from, "b", "ai-anim-piece");
+    fxG.appendChild(ghost);
+    ghost.style.pointerEvents = "none";
+    if (place) ghost.style.opacity = "0";
+
+    render();
+    if (!place) {
+      // hide the piece at the origin so the glide reads as "it left from here"
+      const orig = piecesG.querySelector('.piece[data-point="' + mv.from + '"]');
+      if (orig) orig.style.opacity = "0";
+    }
+    statusMsg.textContent = place
+      ? `Computer places at ${pointName(mv.to)}…`
+      : `Computer moves ${pointName(mv.from)} → ${pointName(mv.to)}…`;
+
+    const tick = now => {
+      if (myGen !== gen || !aiAnim) return; // reset/undo: stop dead
+      const t = now - t0;
+      if (place) {
+        ghost.style.opacity = String(Math.min(1, t / fadeMs));
+      } else {
+        const p = ease(Math.min(1, t / travelMs));
+        const x = P[mv.from][0] + (P[mv.to][0] - P[mv.from][0]) * p;
+        const y = P[mv.from][1] + (P[mv.to][1] - P[mv.from][1]) * p;
+        ghost.setAttribute("transform",
+          `translate(${(x - P[mv.from][0]).toFixed(1)} ${(y - P[mv.from][1]).toFixed(1)})`);
+      }
+      if (t < total) { requestAnimationFrame(tick); return; }
+      finalizeAiMove(mv, myGen);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function finalizeAiMove(mv, myGen) {
+    if (myGen !== gen) return;   // game was undone/reset meanwhile
+    aiAnim = null;
+    doMove(mv);                  // commit: real board now shows the move
+    // drop the animation ghosts (they live in fxG, which render() preserves)
+    if (fxG) fxG.querySelectorAll(".ai-anim-piece, .ai-land-ring").forEach(n => n.remove());
   }
 
   function aiRemove() {
@@ -987,6 +1064,7 @@ ENGINE.isDraw = function (st) {
     state = ENGINE.newGame();
     selected = null; aiThinking = false;
     history = []; pendingEntry = null; viewIndex = null;
+    aiAnim = null;             // no glide from the previous game
     clearFx();
     gen++;
     clearSave();
@@ -1001,6 +1079,7 @@ ENGINE.isDraw = function (st) {
 
   function showMenu() {
     history = []; pendingEntry = null; viewIndex = null;
+    aiAnim = null;
     clearFx();
     gen++;
     $("game-screen").classList.add("hidden");
