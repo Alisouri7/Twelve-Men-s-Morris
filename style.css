@@ -622,3 +622,46 @@ body {
   .piece.capture-anim, .shard, .mill-flash { animation: none; opacity: 0; }
   .ai-anim-piece, .ai-land-ring { animation: none; }
 }
+
+/* ============================================================
+   Language switcher + Persian (RTL) typography
+   ============================================================ */
+
+/* --- start-screen language button --- */
+.btn-lang {
+  display: block;
+  margin-inline-start: auto;   /* hugs the inline-end edge, above the title */
+  margin-bottom: 14px;
+  padding: 6px 14px;
+  font-size: .85rem;
+  border-radius: 999px;
+}
+
+/* --- Persian font --- */
+body.lang-fa {
+  font-family: 'Vazirmatn', 'Spectral', Tahoma, sans-serif;
+}
+body.lang-fa .btn,
+body.lang-fa .btn-link {
+  font-family: 'Vazirmatn', 'Spectral', Tahoma, sans-serif;
+}
+body.lang-fa .title,
+body.lang-fa .title-small,
+body.lang-fa .end-card h2,
+body.lang-fa .modal h2 {
+  font-family: 'Vazirmatn', 'Cinzel', Tahoma, sans-serif;
+  letter-spacing: 0;
+}
+/* Italic reads poorly in Persian — use upright text */
+body.lang-fa .subtitle,
+body.lang-fa .picker-hint,
+body.lang-fa .resume-detail {
+  font-style: normal;
+}
+
+/* --- RTL layout fixes (everything else mirrors automatically) --- */
+[dir="rtl"] .modal-close { right: auto; left: 12px; }
+[dir="rtl"] .resume-text { text-align: right; }
+[dir="rtl"] .rules-body ol { margin: 10px 22px 10px 0; }
+/* Board coordinates (A1..G7) stay Latin even in Persian */
+[dir="rtl"] #board { direction: ltr; }

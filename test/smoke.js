@@ -20,9 +20,22 @@ global.document = {
   querySelectorAll: () => [],
   createElementNS: () => elStub(),
   createElement: () => elStub(),
-  addEventListener() {}
+  addEventListener() {},
+  documentElement: elStub(),
+  body: elStub(),
+  dispatchEvent() {}
 };
 
+global.CustomEvent = class CustomEvent { constructor(type, opts) { this.type = type; this.detail = opts && opts.detail; } };
+
+global.localStorage = {
+  _data: {},
+  getItem(k) { return Object.prototype.hasOwnProperty.call(this._data, k) ? this._data[k] : null; },
+  setItem(k, v) { this._data[k] = String(v); },
+  removeItem(k) { delete this._data[k]; }
+};
+
+require("../i18n.js");
 require("../game.js");
 require("../ai.js");
 
@@ -199,6 +212,21 @@ for (const level of ["easy", "medium", "hard"]) {
   }
   ok(plies < 500 && st.gameOver, "AI vs AI game terminates (plies=" + plies + ", winner=" + st.winner + ")");
 })();
+
+/* ---------- i18n checks ---------- */
+console.log("i18n:");
+const I18N = window.I18N;
+ok(!!I18N && typeof I18N.t === "function", "I18N module loaded");
+ok(I18N.getLang() === "en", "default language is English");
+ok(I18N.t("player.white") === "White", "English lookup works");
+I18N.setLang("fa");
+ok(I18N.getLang() === "fa", "setLang('fa') switches language");
+ok(I18N.t("player.white") === "سفید", "Persian lookup works");
+ok(I18N.t("resume.move", { n: 5 }) === "حرکت ۵", "Persian digits in interpolated strings");
+ok(I18N.t("nonexistent.key") === "nonexistent.key", "missing keys fall back to the key itself");
+I18N.setLang("en");
+ok(I18N.t("player.white") === "White", "switching back to English works");
+ok(I18N.t("resume.move", { n: 5 }) === "move 5", "Western digits restored in English");
 
 console.log("\n" + passed + " passed, " + failed + " failed");
 process.exit(failed ? 1 : 0);

@@ -289,6 +289,12 @@ ENGINE.isDraw = function (st) {
   const $ = id => document.getElementById(id);
   const SVGNS = "http://www.w3.org/2000/svg";
 
+  // ----- i18n helper (falls back to plain English keys if i18n.js is missing) -----
+  const T = (window.I18N && window.I18N.t) || ((key, params) => key);
+  // Localize digits (Persian numerals when the UI language is fa)
+  const NUM = n => (window.I18N && window.I18N.getLang() === "fa")
+    ? window.I18N.faDigits(String(n)) : String(n);
+
   const boardSvg = $("board");
   const statusMsg = $("status-msg");
   const historyEl = $("history");
@@ -556,7 +562,7 @@ ENGINE.isDraw = function (st) {
     const banner = $("review-banner");
     if (banner) {
       banner.classList.toggle("hidden", viewIndex === null);
-      if (viewIndex !== null) banner.textContent = `Move ${viewIndex + 1} / ${history.length}`;
+      if (viewIndex !== null) banner.textContent = T("board.reviewing");
     }
   }
 
@@ -629,12 +635,12 @@ ENGINE.isDraw = function (st) {
   }
 
   function renderPanel() {
-    $("hand-w").textContent = state.hand.w;
-    $("hand-b").textContent = state.hand.b;
-    $("board-w").textContent = ENGINE.playersOnBoardCount(state, "w");
-    $("board-b").textContent = ENGINE.playersOnBoardCount(state, "b");
-    $("lost-w").textContent = state.lost.w;
-    $("lost-b").textContent = state.lost.b;
+    $("hand-w").textContent = NUM(state.hand.w);
+    $("hand-b").textContent = NUM(state.hand.b);
+    $("board-w").textContent = NUM(ENGINE.playersOnBoardCount(state, "w"));
+    $("board-b").textContent = NUM(ENGINE.playersOnBoardCount(state, "b"));
+    $("lost-w").textContent = NUM(state.lost.w);
+    $("lost-b").textContent = NUM(state.lost.b);
     const viewing = viewIndex !== null;
     $("card-w").classList.toggle("active", !viewing && state.turn === "w" && !state.gameOver);
     $("card-b").classList.toggle("active", !viewing && state.turn === "b" && !state.gameOver);
@@ -648,31 +654,29 @@ ENGINE.isDraw = function (st) {
 
     const names = { w: playerName("w"), b: playerName("b") };
     phaseLine.textContent = state.phase === "place"
-      ? `Placing phase — ${state.hand.w + state.hand.b} pieces to place`
-      : (state.gameOver ? "Game over" : "Moving phase");
+      ? T("phase.placing", { n: state.hand.w + state.hand.b })
+      : (state.gameOver ? T("phase.gameOver") : T("phase.moving"));
     if (!state.gameOver) {
       if (state.pendingRemoval) {
-        statusMsg.textContent = `${cap(names[state.turn])} formed a mill — remove an enemy piece`;
+        statusMsg.textContent = T("status.millRemove", { name: names[state.turn] });
       } else if (state.phase === "place") {
-        statusMsg.textContent = `${cap(names[state.turn])} to place a piece`;
+        statusMsg.textContent = T("status.placeTurn", { name: names[state.turn] });
       } else {
         statusMsg.textContent = selected === null
-          ? `${cap(names[state.turn])}: pick a piece to move`
-          : `${cap(names[state.turn])}: pick a highlighted point`;
+          ? T("status.pickPiece", { name: names[state.turn] })
+          : T("status.pickDest", { name: names[state.turn] });
       }
     }
     if (viewing) {
-      statusMsg.textContent = `Reviewing move ${viewIndex + 1} of ${history.length} — click ⏭ to return to the game`;
-      phaseLine.textContent = `Reviewing move ${viewIndex + 1} / ${history.length}`;
+      statusMsg.textContent = T("status.reviewing", { n: viewIndex + 1, total: history.length });
+      phaseLine.textContent = T("phase.reviewing", { n: viewIndex + 1, total: history.length });
     }
   }
 
   function playerName(color) {
-    if (mode === "human") return color === "w" ? "White" : "Black";
-    return color === "w" ? "You (White)" : `Computer (${difficulty})`;
+    if (mode === "human") return T(color === "w" ? "player.white" : "player.black");
+    return color === "w" ? T("player.youWhite") : T("player.computer", { difficulty: T("diff." + difficulty) });
   }
-  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
-
   function log() {
     // rows are rendered by renderHistory(); kept as a no-op shim
   }
@@ -687,7 +691,7 @@ ENGINE.isDraw = function (st) {
       row.tabIndex = 0;
       const isCurrent = (viewIndex === null) ? k === total - 1 : k === viewIndex;
       if (isCurrent) row.classList.add("current");
-      row.textContent = (k + 1) + ". " + history[k].text;
+      row.textContent = NUM(k + 1) + ". " + describeEntry(history[k]);
       const open = () => setView(k);
       row.addEventListener("click", open);
       row.addEventListener("keydown", ev => {
@@ -741,6 +745,22 @@ ENGINE.isDraw = function (st) {
     saveGame();
   }
 
+  // ----- language switching -----
+  // The i18n layer re-applies static strings and fires a "langchange"
+  // event; the panel re-renders so dynamic text follows too.
+  const langBtn = $("btn-lang");
+  if (langBtn) {
+    langBtn.addEventListener("click", () => {
+      window.I18N.setLang(window.I18N.getLang() === "fa" ? "en" : "fa");
+    });
+  }
+  document.addEventListener("langchange", () => {
+    window.I18N.applyStatic();
+    syncSoundBtn();
+    showResumeOffer();
+    render();
+  });
+
   // ----- auto-save / resume (localStorage) -----
   const SAVE_KEY = "tmm.save";
   function saveGame() {
@@ -770,9 +790,11 @@ ENGINE.isDraw = function (st) {
     if (!d) { box.classList.add("hidden"); return; }
     const n = (d.history || []).length + (d.pendingEntry ? 1 : 0);
     $("resume-detail").textContent =
-      (d.mode === "computer" ? `vs Computer (${d.difficulty})` : "Two players") +
-      ` · move ${Math.max(1, n)}` +
-      (d.state.pendingRemoval ? " · capture pending" : "");
+      (d.mode === "computer"
+        ? T("resume.vsComputer", { difficulty: (d.difficulty && T("diff." + d.difficulty)) || d.difficulty || "" })
+        : T("resume.twoPlayers")) +
+      " · " + T("resume.move", { n: Math.max(1, n) }) +
+      (d.state.pendingRemoval ? " · " + T("resume.capturePending") : "");
     box.classList.remove("hidden");
   }
   function resumeGame() {
@@ -781,7 +803,12 @@ ENGINE.isDraw = function (st) {
     mode = d.mode;
     difficulty = d.difficulty || difficulty;
     state = d.state;
-    history = d.history || [];
+    // Normalize loaded entries to the current entry shape (removeAt/mill).
+    history = (d.history || []).map(e => ({
+      move: e.move, player: e.player, snapBefore: e.snapBefore,
+      snapAfter: e.snapAfter, removeAt: e.removeAt !== undefined ? e.removeAt : null,
+      mill: !!e.mill
+    }));
     pendingEntry = d.pendingEntry || null;
     viewIndex = null; selected = null; aiThinking = false;
     aiAnim = null;             // stale in-flight animation after resume
@@ -846,12 +873,12 @@ ENGINE.isDraw = function (st) {
       if (ml) flashMill(ml);
     } else if (move.type === "place") SFX.place();
     else SFX.slide();
-    const described = describeText(who, move);
-    pendingEntry = { move, player: who, snapBefore, described };
-    describeMove(who, move, done);
+    // Entry stores structured data; display text is derived on demand so the
+    // whole history re-localizes instantly when the language changes.
+    pendingEntry = { move, player: who, snapBefore, removeAt: null, mill: !!done.mill };
     render();
     if (done.gameOver) {
-      pushEntry(pendingEntry, ENGINE.cloneState(state), described);
+      pushEntry(pendingEntry, ENGINE.cloneState(state));
       finishGame(done); return;
     }
     if (state.pendingRemoval) {
@@ -860,7 +887,7 @@ ENGINE.isDraw = function (st) {
       if (mode === "computer" && who === "b") aiRemove();
       return;
     }
-    pushEntry(pendingEntry, ENGINE.cloneState(state), described);
+    pushEntry(pendingEntry, ENGINE.cloneState(state));
     afterTurn();
   }
 
@@ -869,30 +896,38 @@ ENGINE.isDraw = function (st) {
     captureFx(point, who === "w" ? "b" : "w");   // animate before state erases the piece
     SFX.capture();
     const done = ENGINE.applyRemoval(state, point);
-    const entry = pendingEntry || { move: null, player: who, snapBefore: null, described: who === "w" ? "White" : "Black" };
-    const text = entry.described + `; removes at ${pointName(point)}`;
+    const entry = pendingEntry || { move: null, player: who, snapBefore: null, removeAt: null, mill: false };
+    entry.removeAt = point;
     pendingEntry = null;
     render();
-    pushEntry(entry, ENGINE.cloneState(state), text);
+    pushEntry(entry, ENGINE.cloneState(state));
     if (done.gameOver) { finishGame(done); return; }
     afterTurn();
   }
 
+  function colorName(color) {
+    return T(color === "w" ? "player.white" : "player.black");
+  }
+
   function describeText(who, move) {
-    const name = who === "w" ? "White" : "Black";
-    if (move.type === "place") return `${name} places at ${pointName(move.to)}`;
-    return `${name} moves ${pointName(move.from)} → ${pointName(move.to)}`;
+    const name = colorName(who);
+    if (!move) return name;
+    if (move.type === "place") return T("history.whitePlacesAt", { name, point: pointName(move.to) });
+    return T("history.whiteMoves", { name, from: pointName(move.from), to: pointName(move.to) });
   }
 
-  function describeMove(who, move, done) {
-    log(describeText(who, move));
-    if (done.mill) log(`${who === "w" ? "White" : "Black"} forms a mill!`);
+  // Full one-line description of a history entry in the current language.
+  function describeEntry(entry) {
+    let s = describeText(entry.player, entry.move);
+    if (entry.removeAt !== null && entry.removeAt !== undefined) {
+      s += "; " + T("history.removesAt", { name: colorName(entry.player), point: pointName(entry.removeAt) });
+    }
+    return s;
   }
 
-  function pushEntry(entry, snapAfter, text) {
+  function pushEntry(entry, snapAfter) {
     if (!entry) return;
     entry.snapAfter = snapAfter;
-    entry.text = text;
     pendingEntry = null;
     history.push(entry);
     if (viewIndex !== null) viewIndex = null; // a new move ends reviewing
@@ -920,7 +955,7 @@ ENGINE.isDraw = function (st) {
     if (viewIndex !== null) return; // reviewing: don't move on stale state
     aiThinking = true;
     const myGen = gen;
-    statusMsg.textContent = "Computer is thinking…";
+    statusMsg.textContent = T("status.computerThinking");
     setTimeout(() => {
       if (myGen !== gen) return; // game was undone/reset meanwhile
       const mv = window.AI.chooseMove(state, difficulty);
@@ -975,8 +1010,8 @@ ENGINE.isDraw = function (st) {
       if (orig) orig.style.opacity = "0";
     }
     statusMsg.textContent = place
-      ? `Computer places at ${pointName(mv.to)}…`
-      : `Computer moves ${pointName(mv.from)} → ${pointName(mv.to)}…`;
+      ? T("status.computerPlaces", { point: pointName(mv.to) })
+      : T("status.computerMoves", { from: pointName(mv.from), to: pointName(mv.to) });
 
     const tick = now => {
       if (myGen !== gen || !aiAnim) return; // reset/undo: stop dead
@@ -1041,18 +1076,18 @@ ENGINE.isDraw = function (st) {
     const detail = $("end-detail");
     if (done.winner === "draw") {
       icon.textContent = "🤝";
-      title.textContent = "Draw";
-      detail.textContent = "The board filled up with no capture ever made.";
+      title.textContent = T("end.draw");
+      detail.textContent = T("end.drawDetail");
     } else {
       const winnerName = done.winner === "w" ? playerName("w") : playerName("b");
       const youWon = mode === "human" ? true : done.winner === "w";
       icon.textContent = mode === "human" ? "🏆" : (youWon ? "🏆" : "💻");
-      title.textContent = `${winnerName} wins`;
+      title.textContent = T("end.whiteWins", { name: winnerName });
       detail.textContent = done.endReason === "blocked"
-        ? "The opponent has no legal move."
-        : "The opponent was reduced to two pieces.";
+        ? T("end.blockedDetail")
+        : T("end.piecesDetail");
       if (mode === "computer") {
-        detail.textContent += youWon ? " Well played!" : " Better luck next time!";
+        detail.textContent += T(youWon ? "end.wellPlayed" : "end.betterLuck");
       }
     }
     overlay.classList.remove("hidden");
@@ -1072,7 +1107,7 @@ ENGINE.isDraw = function (st) {
     $("end-overlay").classList.add("hidden");
     $("start-screen").classList.add("hidden");
     $("game-screen").classList.remove("hidden");
-    log(`New game — ${mode === "computer" ? "vs computer (" + difficulty + ")" : "two players"}`);
+    log(T(mode === "computer" ? "log.newVsComputer" : "log.newVsHuman", { difficulty }));
     render();
     if (mode === "computer" && state.turn === "b") aiTurn();
   }
@@ -1111,7 +1146,7 @@ ENGINE.isDraw = function (st) {
     const b = $("btn-sound");
     if (!b) return;
     b.textContent = SFX.enabled ? "\uD83D\uDD0A" : "\uD83D\uDD07";
-    b.title = SFX.enabled ? "Mute sounds (M)" : "Unmute sounds (M)";
+    b.title = T(SFX.enabled ? "header.muteTitle" : "header.unmuteTitle");
     b.setAttribute("aria-pressed", String(SFX.enabled));
     b.setAttribute("aria-label", b.title);
   }
@@ -1141,6 +1176,10 @@ ENGINE.isDraw = function (st) {
   // ----- boot -----
   drawStaticBoard();
   addGradients();
+  if (window.I18N) {
+    window.I18N.applyDocumentSettings();   // dir/lang/font per saved language
+    window.I18N.applyStatic();             // localize all static markup
+  }
   render();
   syncSoundBtn();
   showResumeOffer();
